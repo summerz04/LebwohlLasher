@@ -28,6 +28,7 @@ import datetime
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from numba import njit 
 
 #=======================================================================
 def initdat(nmax):
@@ -153,13 +154,22 @@ def one_energy(arr,ix,iy,nmax):
 # to the energy
 #
     ang = arr[ix,iy]-arr[ixp,iy]
-    en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
+    c = np.cos(ang)
+    en += 0.5*(1.0 - 3.0*c*c)
+
     ang = arr[ix,iy]-arr[ixm,iy]
-    en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
+    c = np.cos(ang)
+    en += 0.5*(1.0 - 3.0*c*c)
+
     ang = arr[ix,iy]-arr[ix,iyp]
-    en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
+    c = np.cos(ang)
+    en += 0.5*(1.0 - 3.0*c*c)
+
     ang = arr[ix,iy]-arr[ix,iym]
-    en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
+    c = np.cos(ang)
+    en += 0.5*(1.0 - 3.0*c*c)
+
+
     return en
 #=======================================================================
 def all_energy(arr,nmax):
