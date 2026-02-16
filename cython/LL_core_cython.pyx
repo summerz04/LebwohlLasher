@@ -1,3 +1,7 @@
+# This .pyx includes the cythonised core functions one_energy, all_energy and MC_step 
+# that were identified during profiling as the most inefficient sections. 
+# These cythonised functions can then be imported into the main simulation script. 
+
 import numpy as np
 import cython 
 from libc.math cimport cos, exp 
