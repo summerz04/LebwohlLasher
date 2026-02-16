@@ -29,7 +29,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import cython 
-from LL_core_cython import one_energy, all_energy, MC_step 
+from libc.math cimport cos, exp 
 
 #=======================================================================
 
@@ -131,24 +131,25 @@ def savedat(arr,nsteps,Ts,runtime,ratio,energy,order,nmax):
         print("   {:05d}    {:6.4f} {:12.4f}  {:6.4f} ".format(i,ratio[i],energy[i],order[i]),file=FileOut)
     FileOut.close()
 #=======================================================================
-
-
-""" def one_energy(arr,ix,iy,nmax):
-    
+# cythonised one_energy 
+def one_energy(double [:,:] arr, int ix, int iy, int nmax ):
+    """
     Arguments:
     arr (float(nmax,nmax)) = array that contains lattice data;
     ix (int) = x lattice coordinate of cell;
     iy (int) = y lattice coordinate of cell;
     nmax (int) = side length of square lattice.
     Description:
-    Function that computes the energy of a single cell of the
+    Cythonised function that computes the energy of a single cell of the
     lattice taking into account periodic boundaries.  Working with
     reduced energy (U/epsilon), equivalent to setting epsilon=1 in
     equation (1) in the project notes.
     Returns:
     en (float) = reduced energy of cell.
-    
-    en = 0.0
+    """
+    cdef double en = 0.0
+    cdef int ixp, ixm, iyp, iym 
+    cdef double ang, c
     ixp = (ix+1)%nmax # These are the coordinates
     ixm = (ix-1)%nmax # of the neighbours
     iyp = (iy+1)%nmax # with wraparound
@@ -158,27 +159,30 @@ def savedat(arr,nsteps,Ts,runtime,ratio,energy,order,nmax):
 # to the energy
 #
     ang = arr[ix,iy]-arr[ixp,iy]
-    c = np.cos(ang)
+
+    # using cmath cos operation instead of numpy 
+    c = cos(ang)
     en += 0.5*(1.0 - 3.0*c*c)
 
     ang = arr[ix,iy]-arr[ixm,iy]
-    c = np.cos(ang)
+    c = cos(ang)
     en += 0.5*(1.0 - 3.0*c*c)
 
     ang = arr[ix,iy]-arr[ix,iyp]
-    c = np.cos(ang)
+    c = cos(ang)
     en += 0.5*(1.0 - 3.0*c*c)
 
     ang = arr[ix,iy]-arr[ix,iym]
-    c = np.cos(ang)
+    c = cos(ang)
     en += 0.5*(1.0 - 3.0*c*c)
 
 
-    return en"""
+    return en
 #=======================================================================
 
-"""def all_energy(arr,nmax):
-    
+# cythonised all_energy function
+def all_energy(double[:,:] arr, int nmax):
+    """
     Arguments:
     arr (float(nmax,nmax)) = array that contains lattice data;
     nmax (int) = side length of square lattice.
@@ -187,12 +191,12 @@ def savedat(arr,nsteps,Ts,runtime,ratio,energy,order,nmax):
     is in reduced units (U/epsilon).
     Returns:
     enall (float) = reduced energy of lattice.
-    
-    enall = 0.0
+    """
+    cdef double enall = 0.0
     for i in range(nmax):
         for j in range(nmax):
             enall += one_energy(arr,i,j,nmax)
-    return enall"""
+    return enall
 #=======================================================================
 def get_order(arr,nmax):
     """
@@ -223,8 +227,9 @@ def get_order(arr,nmax):
     return eigenvalues.max()
 #=======================================================================
 
-""" def MC_step(arr,Ts,nmax):
-    
+# cythonised MC_step function 
+def MC_step(double[:,:] arr, double Ts, int nmax):
+    """
     Arguments:
     arr (float(nmax,nmax)) = array that contains lattice data;
     Ts (float) = reduced temperature (range 0 to 2);
@@ -238,14 +243,18 @@ def get_order(arr,nmax):
     efficient simulation.
     Returns:
     accept/(nmax**2) (float) = acceptance ratio for current MCS.
-    
+    """
     #
     # Pre-compute some random numbers.  This is faster than
     # using lots of individual calls.  "scale" sets the width
     # of the distribution for the angle changes - increases
     # with temperature.
-    scale=0.1+Ts
+    cdef int i, j, ix, iy
+    cdef double ang, en0, en1, boltz, scale
+    
     accept = 0
+    scale = 0.1 + Ts
+
     xran = np.random.randint(0,high=nmax, size=(nmax,nmax))
     yran = np.random.randint(0,high=nmax, size=(nmax,nmax))
     aran = np.random.normal(scale=scale, size=(nmax,nmax))
@@ -268,7 +277,7 @@ def get_order(arr,nmax):
                     accept += 1
                 else:
                     arr[ix,iy] -= ang
-    return accept/(nmax*nmax) """
+    return accept/(nmax*nmax)
 #=======================================================================
 def main(program, nsteps, nmax, temp, pflag):
     """
