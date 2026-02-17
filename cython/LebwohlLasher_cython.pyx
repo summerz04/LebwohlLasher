@@ -30,6 +30,8 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import cython 
 from libc.math cimport cos, exp 
+from cython.parallel cimport prange
+cimport openmp 
 
 #=======================================================================
 
@@ -258,7 +260,7 @@ def MC_step(double[:,:] arr, double Ts, int nmax):
     xran = np.random.randint(0,high=nmax, size=(nmax,nmax))
     yran = np.random.randint(0,high=nmax, size=(nmax,nmax))
     aran = np.random.normal(scale=scale, size=(nmax,nmax))
-    for i in range(nmax):
+    for i in prange(nmax, nogil=True):
         for j in range(nmax):
             ix = xran[i,j]
             iy = yran[i,j]
