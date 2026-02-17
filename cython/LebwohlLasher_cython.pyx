@@ -260,7 +260,7 @@ def MC_step(double[:,:] arr, double Ts, int nmax):
     xran = np.random.randint(0,high=nmax, size=(nmax,nmax))
     yran = np.random.randint(0,high=nmax, size=(nmax,nmax))
     aran = np.random.normal(scale=scale, size=(nmax,nmax))
-    for i in prange(nmax, nogil=True):
+    for i in range(nmax):
         for j in range(nmax):
             ix = xran[i,j]
             iy = yran[i,j]
