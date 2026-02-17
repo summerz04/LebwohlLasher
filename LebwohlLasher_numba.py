@@ -29,7 +29,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-from numba import jit, prange 
+from numba import jit
 #=======================================================================
 def initdat(nmax):
     """
@@ -174,7 +174,7 @@ def one_energy(arr,ix,iy,nmax):
 
     return en
 #=======================================================================
-@jit(nopython=True, parallel=True)
+@jit(nopython=True)
 def all_energy(arr,nmax):
     """
     Arguments:
@@ -187,7 +187,7 @@ def all_energy(arr,nmax):
 	  enall (float) = reduced energy of lattice.
     """
     enall = 0.0
-    for i in prange(nmax):
+    for i in range(nmax):
         for j in range(nmax):
             enall += one_energy(arr,i,j,nmax)
     return enall
