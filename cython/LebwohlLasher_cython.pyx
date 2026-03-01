@@ -1,5 +1,5 @@
 """
-Basic Python Lebwohl-Lasher code.  Based on the paper 
+Cythonised Lebwohl-Lasher code.  Based on the paper 
 P.A. Lebwohl and G. Lasher, Phys. Rev. A, 6, 426-429 (1972).
 This version in 2D.
 
@@ -31,8 +31,6 @@ import matplotlib as mpl
 import cython 
 from libc.math cimport cos, exp 
 from cython.parallel cimport prange
-cimport openmp 
-
 #=======================================================================
 
 def initdat(nmax):
@@ -134,7 +132,7 @@ def savedat(arr,nsteps,Ts,runtime,ratio,energy,order,nmax):
     FileOut.close()
 #=======================================================================
 # cythonised one_energy 
-def one_energy(double [:,:] arr, int ix, int iy, int nmax ):
+cdef double one_energy(double [:,:] arr, int ix, int iy, int nmax) nogil:
     """
     Arguments:
     arr (float(nmax,nmax)) = array that contains lattice data;
@@ -178,12 +176,11 @@ def one_energy(double [:,:] arr, int ix, int iy, int nmax ):
     c = cos(ang)
     en += 0.5*(1.0 - 3.0*c*c)
 
-
     return en
 #=======================================================================
 
 # cythonised all_energy function
-def all_energy(double[:,:] arr, int nmax):
+cdef all_energy(double[:,:] arr, int nmax):
     """
     Arguments:
     arr (float(nmax,nmax)) = array that contains lattice data;
@@ -194,10 +191,14 @@ def all_energy(double[:,:] arr, int nmax):
     Returns:
     enall (float) = reduced energy of lattice.
     """
+    cdef int i
+    cdef int j
     cdef double enall = 0.0
-    for i in range(nmax):
+
+    for i in prange(nmax, nogil=True):
         for j in range(nmax):
             enall += one_energy(arr,i,j,nmax)
+
     return enall
 #=======================================================================
 def get_order(arr,nmax):
@@ -230,7 +231,7 @@ def get_order(arr,nmax):
 #=======================================================================
 
 # cythonised MC_step function 
-def MC_step(double[:,:] arr, double Ts, int nmax):
+cdef MC_step(double[:,:] arr, double Ts, int nmax):
     """
     Arguments:
     arr (float(nmax,nmax)) = array that contains lattice data;
