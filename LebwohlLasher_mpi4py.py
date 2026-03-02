@@ -233,29 +233,36 @@ def MC_step(arr,Ts,nmax):
     # with temperature.
     scale=0.1+Ts
     accept = 0
-    xran = np.random.randint(0,high=nmax, size=(nmax,nmax))
-    yran = np.random.randint(0,high=nmax, size=(nmax,nmax))
-    aran = np.random.normal(scale=scale, size=(nmax,nmax))
-    for i in range(nmax):
-        for j in range(nmax):
-            ix = xran[i,j]
-            iy = yran[i,j]
-            ang = aran[i,j]
-            en0 = one_energy(arr,ix,iy,nmax)
-            arr[ix,iy] += ang
-            en1 = one_energy(arr,ix,iy,nmax)
-            if en1<=en0:
-                accept += 1
-            else:
-            # Now apply the Monte Carlo test - compare
-            # exp( -(E_new - E_old) / T* ) >= rand(0,1)
-                boltz = np.exp( -(en1 - en0) / Ts )
+    
+    for colour in [0, 1]: # 0 black and 1 white 
 
-                if boltz >= np.random.uniform(0.0,1.0):
-                    accept += 1
-                else:
-                    arr[ix,iy] -= ang
-    return accept/(nmax*nmax)
+        aran = np.random.normal(scale=scale, size=(nmax,nmax))
+
+        for i in range(nmax):
+            for j in range(nmax):
+
+                if (i + j) % 2 == colour:
+                    
+                    old_angle = arr[i, j]
+    
+                    en0 = one_energy(arr,i,j,nmax)
+
+                    # changing angle 
+                    arr[i, j] += aran[i,j]
+
+                    en1 = one_energy(arr,i, j,nmax)
+                    if en1<=en0:
+                        accept += 1
+                    else:
+                    # Now apply the Monte Carlo test - compare
+                    # exp( -(E_new - E_old) / T* ) >= rand(0,1)
+                        boltz = np.exp( -(en1 - en0) / Ts )
+
+                        if boltz >= np.random.uniform(0.0,1.0):
+                            accept += 1
+                        else:
+                            arr[i, j] = old_angle
+    return accept/(nmax * nmax )
 #=======================================================================
 def main(program, nsteps, nmax, temp, pflag):
     """
