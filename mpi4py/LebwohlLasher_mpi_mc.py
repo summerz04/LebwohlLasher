@@ -324,7 +324,6 @@ def main(program, nsteps, nmax, temp, pflag):
     runtime = final-initial
 
     
-    
     # rank 0 printing final outputs
     if taskid == 0:
         avg_ratio = total_ratio // numtasks
