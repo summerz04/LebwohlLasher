@@ -1,11 +1,11 @@
 """
-Basic Python Lebwohl-Lasher code.  Based on the paper 
+Implementing NumPy into basic Python Lebwohl-Lasher code.  Based on the paper 
 P.A. Lebwohl and G. Lasher, Phys. Rev. A, 6, 426-429 (1972).
 This version in 2D.
 
 Run at the command line by typing:
 
-python LebwohlLasher.py <ITERATIONS> <SIZE> <TEMPERATURE> <PLOTFLAG>
+python LebwohlLasher_numpy.py <ITERATIONS> <SIZE> <TEMPERATURE> <PLOTFLAG>
 
 where:
   ITERATIONS = number of Monte Carlo steps, where 1MCS is when each cell

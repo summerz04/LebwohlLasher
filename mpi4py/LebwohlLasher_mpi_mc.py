@@ -1,11 +1,14 @@
 """
-Basic Python Lebwohl-Lasher code.  Based on the paper 
+Attempting to implement mpi4py into basic Python Lebwohl-Lasher code. This version
+currently shares independent MC steps across different workers. 
+
+Based on the paper 
 P.A. Lebwohl and G. Lasher, Phys. Rev. A, 6, 426-429 (1972).
 This version in 2D.
 
 Run at the command line by typing:
 
-python LebwohlLasher.py <ITERATIONS> <SIZE> <TEMPERATURE> <PLOTFLAG>
+mpiexec -n <number of threads> python LebwohlLasher_mpi_mc.py <ITERATIONS> <SIZE> <TEMPERATURE> <PLOTFLAG>
 
 where:
   ITERATIONS = number of Monte Carlo steps, where 1MCS is when each cell
