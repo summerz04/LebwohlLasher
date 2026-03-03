@@ -129,13 +129,12 @@ def savedat(arr,nsteps,Ts,runtime,ratio,energy,order,nmax):
         print("   {:05d}    {:6.4f} {:12.4f}  {:6.4f} ".format(i,ratio[i],energy[i],order[i]),file=FileOut)
     FileOut.close()
 #=======================================================================
-def one_energy(arr,ix,iy,nmax):
+def one_energy(arr,ix,iy):
     """
     Arguments:
 	  arr (float(nmax,nmax)) = array that contains lattice data;
 	  ix (int) = x lattice coordinate of cell;
 	  iy (int) = y lattice coordinate of cell;
-      nmax (int) = side length of square lattice.
     Description:
       Function that computes the energy of a single cell of the
       lattice taking into account periodic boundaries.  Working with
@@ -144,11 +143,12 @@ def one_energy(arr,ix,iy,nmax):
 	Returns:
 	  en (float) = reduced energy of cell.
     """
+    x, y = arr.shape
     en = 0.0
-    ixp = (ix+1)%nmax # These are the coordinates
-    ixm = (ix-1)%nmax # of the neighbours
-    iyp = (iy+1)%nmax # with wraparound
-    iym = (iy-1)%nmax #
+    ixp = (ix+1)%x # These are the coordinates
+    ixm = (ix-1)%x # of the neighbours
+    iyp = (iy+1)%y # with wraparound
+    iym = (iy-1)%y #
 #
 # Add together the 4 neighbour contributions
 # to the energy
@@ -163,28 +163,33 @@ def one_energy(arr,ix,iy,nmax):
     en += 0.5*(1.0 - 3.0*np.cos(ang)**2)
     return en
 #=======================================================================
-def all_energy(arr,nmax):
+def all_energy(arr):
     """
     Arguments:
 	  arr (float(nmax,nmax)) = array that contains lattice data;
-      nmax (int) = side length of square lattice.
+      
     Description:
       Function to compute the energy of the entire lattice. Output
       is in reduced units (U/epsilon).
 	Returns:
 	  enall (float) = reduced energy of lattice.
     """
+    # after lattice splitting, array becomes rectangular
+    # extracting shape information from passed arr argument
+    x, y = arr.shape
+
     enall = 0.0
-    for i in range(nmax):
-        for j in range(nmax):
-            enall += one_energy(arr,i,j,nmax)
+    for i in range(x):
+        for j in range(y):
+            enall += one_energy(arr,i,j)
     return enall
 #=======================================================================
-def get_order(arr,nmax):
+
+def get_order(arr):
     """
     Arguments:
 	  arr (float(nmax,nmax)) = array that contains lattice data;
-      nmax (int) = side length of square lattice.
+      
     Description:
       Function to calculate the order parameter of a lattice
       using the Q tensor approach, as in equation (3) of the
@@ -192,29 +197,33 @@ def get_order(arr,nmax):
 	Returns:
 	  max(eigenvalues(Qab)) (float) = order parameter for lattice.
     """
+
+    # after lattice splitting, array becomes rectangular
+    # extracting shape information from passed arr argument
+    x, y = arr.shape
     Qab = np.zeros((3,3))
     delta = np.eye(3,3)
     #
     # Generate a 3D unit vector for each cell (i,j) and
     # put it in a (3,i,j) array.
     #
-    lab = np.vstack((np.cos(arr),np.sin(arr),np.zeros_like(arr))).reshape(3,nmax,nmax)
+    lab = np.vstack((np.cos(arr),np.sin(arr),np.zeros_like(arr))).reshape(3,x,y)
     for a in range(3):
         for b in range(3):
-            for i in range(nmax):
-                for j in range(nmax):
+            for i in range(x):
+                for j in range(y):
                     Qab[a,b] += 3*lab[a,i,j]*lab[b,i,j] - delta[a,b]
-    Qab = Qab/(2*nmax*nmax)
+    Qab = Qab/(2*x*y)
     eigenvalues,eigenvectors = np.linalg.eig(Qab)
     return eigenvalues.max()
 #=======================================================================
 # changing Monte Carlo sampling to checkerboard
-def MC_step(arr,Ts,nmax):
+def MC_step(arr,Ts):
     """
     Arguments:
 	  arr (float(nmax,nmax)) = array that contains lattice data;
 	  Ts (float) = reduced temperature (range 0 to 2);
-      nmax (int) = side length of square lattice.
+
     Description:
       Function to perform one MC step, which consists of an average
       of 1 attempted change per lattice site.  Working with reduced
@@ -230,26 +239,28 @@ def MC_step(arr,Ts,nmax):
     # using lots of individual calls.  "scale" sets the width
     # of the distribution for the angle changes - increases
     # with temperature.
+
+    x, y = arr.shape
     scale=0.1+Ts
     accept = 0
     
     for colour in [0, 1]: # 0 black and 1 white 
 
-        aran = np.random.normal(scale=scale, size=(nmax,nmax))
+        aran = np.random.normal(scale=scale, size=(x,y))
 
-        for i in range(nmax):
-            for j in range(nmax):
+        for i in range(x):
+            for j in range(y):
 
                 if (i + j) % 2 == colour:
                     
                     old_angle = arr[i, j]
     
-                    en0 = one_energy(arr,i,j,nmax)
+                    en0 = one_energy(arr,i,j)
 
                     # changing angle 
                     arr[i, j] += aran[i,j]
 
-                    en1 = one_energy(arr,i, j,nmax)
+                    en1 = one_energy(arr,i, j)
                     if en1<=en0:
                         accept += 1
                     else:
@@ -261,7 +272,7 @@ def MC_step(arr,Ts,nmax):
                             accept += 1
                         else:
                             arr[i, j] = old_angle
-    return accept/(nmax * nmax )
+    return accept/(x * y)
 #=======================================================================
 def main(program, nsteps, nmax, temp, pflag):
     """
@@ -276,6 +287,7 @@ def main(program, nsteps, nmax, temp, pflag):
     Returns:
       NULL
     """
+    initial = time.time()
     # setting up MPI
     comm = MPI.COMM_WORLD
     taskid = comm.Get_rank()
@@ -319,35 +331,33 @@ def main(program, nsteps, nmax, temp, pflag):
         ratio = np.zeros(nsteps+1, dtype=np.float64)
         order = np.zeros(nsteps+1, dtype=np.float64)
     
-        energy[0] = all_energy(local_lattice,rows)
+        energy[0] = all_energy(local_lattice)
         ratio[0] = 0.5 # ideal value
-        order[0] = get_order(local_lattice,rows)
+        order[0] = get_order(local_lattice)
 
     # Begin doing and timing some MC steps.
-        initial = time.time()
+        
         for it in range(1,nsteps+1):
-            ratio[it] = MC_step(local_lattice,temp,rows)
-            energy[it] = all_energy(local_lattice,rows)
-            order[it] = get_order(local_lattice,rows)
+            ratio[it] = MC_step(local_lattice,temp)
+            energy[it] = all_energy(local_lattice)
+            order[it] = get_order(local_lattice)
 
     # gathering each workers results together
-
     total_energy = comm.gather(energy, root=0)
-    total_ratio = comm.gather(ratio, op=MPI.SUM, root=0)
-    total_order = comm.gather(order, op=MPI.SUM, root=0)
+    total_ratio = comm.gather(ratio, root=0)
+    total_order = comm.gather(order, root=0)
     final = time.time()
     runtime = final-initial
 
     
-    
     # rank 0 printing final outputs
     if taskid == 0:
-        avg_ratio = total_ratio // numworkers
-        avg_energy = total_energy // numworkers
-        avg_order = total_order // numworkers
-        print("{}: Size: {:d}, Steps: {:d}, T*: {:5.3f}: Order: {:5.3f}, Time: {:8.6f} s".format(program, nmax,nsteps,temp,avg_order,runtime))
+        # extracting last order value
+        final_orders = [i[-1] for i in total_order]
+        final_avg_order = np.mean(final_orders)
+        print("{}: Size: {:d}, Steps: {:d}, T*: {:5.3f}: Order: {:5.3f}, Time: {:8.6f} s".format(program, nmax,nsteps,temp,final_avg_order,runtime))
     # Plot final frame of lattice and generate output file
-        savedat(full_lattice,nsteps,temp,runtime,ratio,energy,order,nmax)
+        savedat(full_lattice,nsteps,temp,runtime,total_ratio,total_energy,total_order,nmax)
         plotdat(full_lattice,pflag,nmax)
 #=======================================================================
 # Main part of program, getting command line arguments and calling
