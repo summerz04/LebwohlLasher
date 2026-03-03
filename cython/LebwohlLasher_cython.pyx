@@ -31,6 +31,7 @@ import matplotlib as mpl
 import cython 
 from libc.math cimport cos, exp 
 from cython.parallel cimport prange
+
 #=======================================================================
 
 def initdat(nmax):
