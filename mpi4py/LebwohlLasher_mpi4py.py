@@ -280,46 +280,61 @@ def main(program, nsteps, nmax, temp, pflag):
     comm = MPI.COMM_WORLD
     taskid = comm.Get_rank()
     numtasks = comm.Get_size()
+    numworkers = numtasks - 1
 
-    # MC steps per task 
-    steps_per_task = nsteps // numtasks 
-    extra = nsteps % numtasks 
+    # taskid 0 initiating full lattice 
+    if taskid == 0:
+        full_lattice = initdat(nmax)
 
-    if taskid < extra:
-        local_steps = steps_per_task + 1
-    else:
-        local_steps = steps_per_task
+        # rows per task 
+        averow = nmax // numworkers
+        extra = nmax % numworkers
 
-    # each task creating its own lattice at first
-    lattice = initdat(nmax)
-
+        # dealing with extra rows
+        
     
-    # Plot initial frame of lattice
-    # plotdat(lattice,pflag,nmax)
-    # creating variables local to each task
-    energy = np.zeros(local_steps+1,dtype=np.float64)
-    ratio = np.zeros(local_steps+1,dtype=np.float64)
-    order = np.zeros(local_steps+1,dtype=np.float64)
-    # Set initial values in arrays
-    energy[0] = all_energy(lattice,nmax)
-    ratio[0] = 0.5 # ideal value
-    order[0] = get_order(lattice,nmax)
+    # taskid 0 delegating rows to workers
+    if taskid == 0: 
+        offset = 0
+        for i in range(1, numworkers + 1):
+
+            rows = averow
+            if i <= extra:
+                rows+=1 
+            comm.send(offset, dest=i)
+            comm.send(rows, dest=i)
+
+            comm.send(full_lattice[offset:offset+rows, :], dest=i)
+            offset += rows
+
+    # workers receiving information from master 
+    elif taskid != 0:
+        offset = comm.recv(source=0)
+        rows = comm.recv(source=0)
+        local_lattice = comm.recv(source=0)
+
+        # each worker does its own simulation on their rows
+
+        energy = np.zeros(nsteps+1, dtype=np.float64)
+        ratio = np.zeros(nsteps+1, dtype=np.float64)
+        order = np.zeros(nsteps+1, dtype=np.float64)
+    
+        energy[0] = all_energy(local_lattice,rows)
+        ratio[0] = 0.5 # ideal value
+        order[0] = get_order(local_lattice,rows)
 
     # Begin doing and timing some MC steps.
-    initial = time.time()
-    for it in range(1,local_steps+1):
-        ratio[it] = MC_step(lattice,temp,nmax)
-        energy[it] = all_energy(lattice,nmax)
-        order[it] = get_order(lattice,nmax)
+        initial = time.time()
+        for it in range(1,nsteps+1):
+            ratio[it] = MC_step(local_lattice,temp,rows)
+            energy[it] = all_energy(local_lattice,rows)
+            order[it] = get_order(local_lattice,rows)
 
-    final_ratio = ratio[local_steps]
-    final_energy = energy[local_steps]
-    final_order = order[local_steps]
+    # gathering each workers results together
 
-    total_ratio = comm.reduce(final_ratio, root=0)
-    total_energy = comm.reduce(final_energy, root=0)
-    total_order = comm.reduce(final_order, root=0)
-
+    total_energy = comm.gather(energy, root=0)
+    total_ratio = comm.gather(ratio, op=MPI.SUM, root=0)
+    total_order = comm.gather(order, op=MPI.SUM, root=0)
     final = time.time()
     runtime = final-initial
 
@@ -327,13 +342,13 @@ def main(program, nsteps, nmax, temp, pflag):
     
     # rank 0 printing final outputs
     if taskid == 0:
-        avg_ratio = total_ratio // numtasks
-        avg_energy = total_energy //numtasks
-        avg_order = total_order // numtasks 
+        avg_ratio = total_ratio // numworkers
+        avg_energy = total_energy // numworkers
+        avg_order = total_order // numworkers
         print("{}: Size: {:d}, Steps: {:d}, T*: {:5.3f}: Order: {:5.3f}, Time: {:8.6f} s".format(program, nmax,nsteps,temp,avg_order,runtime))
     # Plot final frame of lattice and generate output file
-        savedat(lattice,local_steps,temp,runtime,ratio,energy,order,nmax)
-        plotdat(lattice,pflag,nmax)
+        savedat(full_lattice,nsteps,temp,runtime,ratio,energy,order,nmax)
+        plotdat(full_lattice,pflag,nmax)
 #=======================================================================
 # Main part of program, getting command line arguments and calling
 # main simulation function.
